@@ -253,7 +253,9 @@ if __name__ == '__main__':
             new_column[-1]=new_column[-2]
             coords_df["angle difference"]=new_column
             left_turns = coords_df[np.logical_and(coords_df["angle difference"]<-5,coords_df["speed"]>3)]
+            left_turns = left_turns[np.logical_and(left_turns["angle difference"]>-300,left_turns["speed"]>3)]
             right_turns = coords_df[np.logical_and(coords_df["angle difference"]>5,coords_df["speed"]>3)]
+            right_turns = right_turns[np.logical_and(right_turns["angle difference"]<300,right_turns["speed"]>3)]
             gps_speed_in_knots.append(gps_speed_in_knots[-1])
             meanlist= []
             midlist = []
@@ -268,6 +270,7 @@ if __name__ == '__main__':
             turns = []
             Right_turn = []
             for row in right_turns.iterrows():
+                #print(row)
                 Right_turn.append([row[1][0], row[1][1]])
             Left_turn = []
             for row in left_turns.iterrows():
@@ -298,5 +301,7 @@ if __name__ == '__main__':
             kml_stops(new_stopping_list,file)
             kml_left_turns(Left_turn,file)
             kml_right_turns(Right_turn,file)
+
+            #print(coords_df[coords_df["latitude"]=="43.139827"])
 
 
