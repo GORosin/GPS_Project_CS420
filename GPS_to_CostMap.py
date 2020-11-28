@@ -180,11 +180,10 @@ def convert_time(utc_time):
     return hours * 3600 + minutes * 60 + seconds
 
 
-def calc_mid(interval):
-    return int(interval.mid)
-
-
 if __name__ == '__main__':
+    """
+    TODO switch to RMC or GGA coordinates for drawing points
+    """
     files = [f for f in os.listdir('.') if os.path.isfile(f)]
     for file in files:
         if file[-3:] != "txt":

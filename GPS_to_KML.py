@@ -138,6 +138,9 @@ def convert_time(utc_time):
 
 
 if __name__ == '__main__':
+    """
+    TODO switch to RMC or GGA coordinates for drawing points
+    """
     files = [f for f in os.listdir('.') if os.path.isfile(f)]
     for file in files:  # TODO change to use parameter instead of every file in directory
         if file[-3:] != "txt":  # can only convert text files
