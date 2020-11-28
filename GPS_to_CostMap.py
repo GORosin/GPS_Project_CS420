@@ -68,20 +68,24 @@ def main(file):
         if pd.notnull(row[1][0]):
             coordinates += f"{row[1][3]},{row[1][2]},0.0\n"
 
-    kml_stops(new_stopping_list, file)
-    kml_left_turns(Left_turn, file)
-    kml_right_turns(Right_turn, file)
+    docs = KML.Document()
+    kml_stops(new_stopping_list, docs)
+    kml_left_turns(Left_turn, docs)
+    kml_right_turns(Right_turn, docs)
+    head = KML.kml(docs)
+    outputFilename = "Output_CostMap/" + file[:-4].split("/")[-1] + "_Hazards.kml"
+    outfile = open(outputFilename, "w")
+    outfile.write(etree.tostring(head, pretty_print=True).decode())
+    outfile.close()
 
 
-def kml_stops(kml_coordinates, filename):
+def kml_stops(kml_coordinates, docs):
     """
     TODO change colors to: magenta (stops) yellow (left) cyan (right)
-    TODO combine stops and turns into one "hazards.kml" file
     """
-    docs = KML.Document()
     for coord in kml_coordinates:
         doc = KML.Placemark(
-            KML.description("testpath"),
+            KML.description("Stop"),
             KML.Style(
                 KML.IconStyle(
                     KML.color("ff0000ff"),
@@ -98,18 +102,11 @@ def kml_stops(kml_coordinates, filename):
         )
         docs.append(doc)
 
-    head = KML.kml(docs)
-    outputFilename = "Output_CostMap/" + filename[:-4].split("/")[-1] + "_stops.kml"
-    outfile = open(outputFilename, "w")
-    outfile.write(etree.tostring(head, pretty_print=True).decode())
-    outfile.close()
 
-
-def kml_left_turns(kml_coordinates, filename):
-    docs = KML.Document()
+def kml_left_turns(kml_coordinates, docs):
     for coord in kml_coordinates:
         doc = KML.Placemark(
-            KML.description("testpath"),
+            KML.description("Left Turn"),
             KML.Style(
                 KML.IconStyle(
                     KML.color("ff0000ff"),
@@ -125,18 +122,12 @@ def kml_left_turns(kml_coordinates, filename):
             )
         )
         docs.append(doc)
-    head = KML.kml(docs)
-    outputFilename = "Output_CostMap/" + filename[:-4].split("/")[-1] + "_left.kml"
-    outfile = open(outputFilename, "w")
-    outfile.write(etree.tostring(head, pretty_print=True).decode())
-    outfile.close()
 
 
-def kml_right_turns(kml_coordinates, filename):
-    docs = KML.Document()
+def kml_right_turns(kml_coordinates, docs):
     for coord in kml_coordinates:
         doc = KML.Placemark(
-            KML.description("testpath"),
+            KML.description("Right Turn"),
             KML.Style(
                 KML.IconStyle(
                     KML.color("ff00ffff"),
@@ -152,11 +143,6 @@ def kml_right_turns(kml_coordinates, filename):
             )
         )
         docs.append(doc)
-    head = KML.kml(docs)
-    outputFilename = "Output_CostMap/" + filename[:-4].split("/")[-1] + "_right.kml"
-    outfile = open(outputFilename, "w")
-    outfile.write(etree.tostring(head, pretty_print=True).decode())
-    outfile.close()
 
 
 def set_gps_data(data):
