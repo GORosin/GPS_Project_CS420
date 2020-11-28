@@ -5,6 +5,70 @@ from pykml.factory import KML_ElementMaker as KML
 from lxml import etree
 from geopy import distance
 
+# Change the below variable to be which ever file you want to parse out.
+# If left blank it will run all files in the FILES_TO_WORK directory
+GPS_DATA_FILENAME = "FILES_TO_WORK/2019_03_03__1523_18.txt"
+
+
+def main(file):
+    """
+
+    :param file:
+    :return:
+    """
+    print(file)
+    GPGGA_data, GPRMC_data, coords_data = set_gps_data(file)
+    pd.set_option('display.max_columns', 20)
+    coords_df = pd.DataFrame(coords_data)
+    coords_df.dropna(inplace=True)
+    new_column = coords_df["angle"].values
+    new_column = np.array(new_column).astype(float)
+    coords_df["speed"] = coords_df["speed"].astype(float)
+    new_column[1:] = new_column[1:] - new_column[:-1]
+    for i, d in enumerate(new_column):
+        diff = d % 360
+        result = diff if diff < 180 else 360 - diff
+        sign = 1 if (0 <= d <= 180) or (-180 >= d >= -360) else -1
+        new_column[i] = result * sign
+    new_column[0] = new_column[1]
+    new_column[-1] = new_column[-2]
+    coords_df["angle difference"] = new_column
+    left_turns = coords_df[np.logical_and(coords_df["angle difference"] < -5, coords_df["speed"] > 3)]
+    left_turns = left_turns[np.logical_and(left_turns["angle difference"] > -300, left_turns["speed"] > 3)]
+    right_turns = coords_df[np.logical_and(coords_df["angle difference"] > 5, coords_df["speed"] > 3)]
+    right_turns = right_turns[np.logical_and(right_turns["angle difference"] < 300, right_turns["speed"] > 3)]
+    coords_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
+    turns = []
+    Right_turn = []
+    for row in right_turns.iterrows():
+        # print(row)
+        Right_turn.append([row[1][0], row[1][1]])
+    Left_turn = []
+    for row in left_turns.iterrows():
+        Left_turn.append([row[1][0], row[1][1]])
+    stopping_points = []
+
+    for row in coords_df.iterrows():
+        if float(row[1][3]) < 0.1:  # classifier 1: basically must not be moving
+            stopping_points.append([row[1][0], row[1][1]])
+    points_to_delete = set()
+    points_to_keep = set()
+    for i in range(len(stopping_points)):
+        for j in range(i + 1, len(stopping_points)):
+            dist = distance.distance(stopping_points[i], stopping_points[j]).m
+            if dist < 10:  # multiple consecutive points where the car is not moving are removed
+                points_to_delete.add(j)
+
+    new_stopping_list = [stopping_points[i] for i in range(len(stopping_points)) if i not in points_to_delete]
+    coordinates = ""
+    for row in coords_df.iterrows():
+        if pd.notnull(row[1][0]):
+            coordinates += f"{row[1][0]},{row[1][1]},0.0\n"
+
+    kml_stops(new_stopping_list, file)
+    kml_left_turns(Left_turn, file)
+    kml_right_turns(Right_turn, file)
+
 
 def kml_stops(kml_coordinates, filename):
     """
@@ -176,64 +240,8 @@ def convert_time(utc_time):
 
 
 if __name__ == '__main__':
-    """
-    TODO switch to RMC or GGA coordinates for drawing points
-    """
-    files = [f for f in os.listdir('.') if os.path.isfile(f)]
-    for file in files:
-        if file[-3:] != "txt":
-            continue
-        else:
-            gps_data = file
-            print(file)
-            GPGGA_data, GPRMC_data, coords_data = set_gps_data(gps_data)
-            pd.set_option('display.max_columns', 20)
-            coords_df = pd.DataFrame(coords_data)
-            coords_df.dropna(inplace=True)
-            new_column = coords_df["angle"].values
-            new_column = np.array(new_column).astype(float)
-            coords_df["speed"] = coords_df["speed"].astype(float)
-            new_column[1:] = new_column[1:] - new_column[:-1]
-            for i, d in enumerate(new_column):
-                diff = d % 360
-                result = diff if diff < 180 else 360 - diff
-                sign = 1 if (0 <= d <= 180) or (-180 >= d >= -360) else -1
-                new_column[i] = result*sign
-            new_column[0] = new_column[1]
-            new_column[-1] = new_column[-2]
-            coords_df["angle difference"] = new_column
-            left_turns = coords_df[np.logical_and(coords_df["angle difference"] < -5, coords_df["speed"] > 3)]
-            left_turns = left_turns[np.logical_and(left_turns["angle difference"] > -300, left_turns["speed"] > 3)]
-            right_turns = coords_df[np.logical_and(coords_df["angle difference"] > 5, coords_df["speed"] > 3)]
-            right_turns = right_turns[np.logical_and(right_turns["angle difference"] < 300, right_turns["speed"] > 3)]
-            coords_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
-            turns = []
-            Right_turn = []
-            for row in right_turns.iterrows():
-                # print(row)
-                Right_turn.append([row[1][0], row[1][1]])
-            Left_turn = []
-            for row in left_turns.iterrows():
-                Left_turn.append([row[1][0], row[1][1]])
-            stopping_points = []
-
-            for row in coords_df.iterrows():
-                if float(row[1][3]) < 0.1:  # classifier 1: basically must not be moving
-                    stopping_points.append([row[1][0], row[1][1]])
-            points_to_delete = set()
-            points_to_keep = set()
-            for i in range(len(stopping_points)):
-                for j in range(i + 1, len(stopping_points)):
-                    dist = distance.distance(stopping_points[i], stopping_points[j]).m
-                    if dist < 10:  # multiple consecutive points where the car is not moving are removed
-                        points_to_delete.add(j)
-
-            new_stopping_list = [stopping_points[i] for i in range(len(stopping_points)) if i not in points_to_delete]
-            coordinates = ""
-            for row in coords_df.iterrows():
-                if pd.notnull(row[1][0]):
-                    coordinates += f"{row[1][0]},{row[1][1]},0.0\n"
-
-            kml_stops(new_stopping_list, file)
-            kml_left_turns(Left_turn, file)
-            kml_right_turns(Right_turn, file)
+    if GPS_DATA_FILENAME == "":
+        for fileName in os.listdir("FILES_TO_WORK"):
+            main(fileName)
+    else:
+        main(GPS_DATA_FILENAME)
