@@ -59,9 +59,9 @@ def main(file):
     coords_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
     # gets rid of coordinates at exactly the same place
     coordinates = ""
-    for row in coords_df.iterrows():
+    for row in GPRMC_df.iterrows():
         if pd.notnull(row[1][0]):
-            coordinates += f"{row[1][0]},{row[1][1]},0.0\n"  # creates a string of comma-separated coordinates
+            coordinates += f"{row[1][3]},{row[1][2]},0.0\n"  # creates a string of comma-separated coordinates
     to_kml(coordinates, file)
 
 
@@ -138,13 +138,13 @@ def set_gps_data(data):
                 GPRMC["validity"].append(line_tokens[2])
                 try:
                     if line_tokens[4] == "S":
-                        GPRMC["latitude"].append(-1 * float(line_tokens[3]))
+                        GPRMC["latitude"].append(convert_coordinate(-1 * float(line_tokens[3])))
                     else:
-                        GPRMC["latitude"].append(float(line_tokens[3]))
+                        GPRMC["latitude"].append(convert_coordinate(float(line_tokens[3])))
                     if line_tokens[6] == "W":
-                        GPRMC["longitude"].append(-1 * float(line_tokens[5]))
+                        GPRMC["longitude"].append(convert_coordinate(-1 * float(line_tokens[5])))
                     else:
-                        GPRMC["longitude"].append(float(line_tokens[5]))
+                        GPRMC["longitude"].append(convert_coordinate(float(line_tokens[5])))
                     GPRMC["speed over ground in knots"].append(float(line_tokens[7]))
                 except ValueError:
                     GPRMC["latitude"].append(None)
@@ -189,6 +189,15 @@ def convert_time(utc_time):
     minutes = int(minutes_seconds / 100)
     seconds = minutes_seconds % 100
     return hours * 3600 + minutes * 60 + seconds
+
+
+def convert_coordinate(coordinate):
+    sign = 1
+    if int(coordinate) < 0:
+        sign = -1
+    degrees = int(abs(coordinate) / 100)
+    minutes = float(abs(coordinate)) % 100
+    return sign * (degrees + (minutes / 60))
 
 
 if __name__ == '__main__':
