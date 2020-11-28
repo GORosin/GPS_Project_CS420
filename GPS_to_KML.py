@@ -65,7 +65,7 @@ def kml_stops(kml_coordinates, filename):
     #os.startfile(outfile.name)
 
 
-def kml_turns(kml_coordinates, filename):
+def kml_left_turns(kml_coordinates, filename):
     docs = KML.Document()
     for coord in kml_coordinates:
         doc = KML.Placemark(
@@ -86,10 +86,35 @@ def kml_turns(kml_coordinates, filename):
         )
         docs.append(doc)
     head = KML.kml(docs)
-    outfile = open(str(filename[:-4])+"_turns"+".kml", "w")
+    outfile = open(str(filename[:-4])+"_left_turns"+".kml", "w")
     outfile.write(etree.tostring(head, pretty_print=True).decode())
     outfile.close()
-    #os.startfile(outfile.name)
+
+
+def kml_right_turns(kml_coordinates, filename):
+    docs = KML.Document()
+    for coord in kml_coordinates:
+        doc = KML.Placemark(
+            KML.description("testpath"),
+            KML.Style(
+                KML.IconStyle(
+                    KML.color("ff00ffff"),
+                    KML.Icon(
+                        KML.href("http://maps.google.com/mapfiles/kml/paddle/1.png")
+                    )
+                )
+            ),
+            KML.Point(
+                KML.coordinates(
+                    coord[0]+","+coord[1]+",0.0"
+                )
+            )
+        )
+        docs.append(doc)
+    head = KML.kml(docs)
+    outfile = open(str(filename[:-4])+"_right_turns"+".kml", "w")
+    outfile.write(etree.tostring(head, pretty_print=True).decode())
+    outfile.close()
 
 
 def set_gps_data(data):
@@ -222,12 +247,13 @@ if __name__ == '__main__':
             new_column = coords_df["angle"].values
             new_column = np.array(new_column).astype(float)
             coords_df["speed"] = coords_df["speed"].astype(float)
-            new_column[1:]=np.absolute(new_column[1:]-new_column[:-1])
+            new_column[1:]=new_column[1:]-new_column[:-1]
             new_column[0]=new_column[1]
             print(new_column)
             new_column[-1]=new_column[-2]
             coords_df["angle difference"]=new_column
-            new_angles = coords_df[np.logical_and(coords_df["angle difference"]>5,coords_df["speed"]>3)]
+            left_turns = coords_df[np.logical_and(coords_df["angle difference"]<-5,coords_df["speed"]>3)]
+            right_turns = coords_df[np.logical_and(coords_df["angle difference"]>5,coords_df["speed"]>3)]
             gps_speed_in_knots.append(gps_speed_in_knots[-1])
             meanlist= []
             midlist = []
@@ -240,11 +266,12 @@ if __name__ == '__main__':
             GPRMC_df.drop_duplicates(subset=["longitude","latitude"], keep="first", inplace=True)
             coords_df.drop_duplicates(subset=["longitude","latitude"], keep="first", inplace=True)
             turns = []
-            for row in new_angles.iterrows():
-                turns.append([row[1][0], row[1][1]])
-
             Right_turn = []
+            for row in right_turns.iterrows():
+                Right_turn.append([row[1][0], row[1][1]])
             Left_turn = []
+            for row in left_turns.iterrows():
+                Left_turn.append([row[1][0], row[1][1]])
             stopping_points=[]
 
             for row in coords_df.iterrows():
@@ -269,6 +296,7 @@ if __name__ == '__main__':
 
             to_kml(coordinates,file)
             kml_stops(new_stopping_list,file)
-            kml_turns(turns,file)
+            kml_left_turns(Left_turn,file)
+            kml_right_turns(Right_turn,file)
 
 
