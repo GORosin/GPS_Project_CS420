@@ -1,14 +1,9 @@
-import sys
 import os
-import webbrowser
-import math
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from pykml.factory import KML_ElementMaker as KML
 from lxml import etree
 from geopy import distance
-import datetime
 
 
 def kml_stops(kml_coordinates, filename):
@@ -243,4 +238,3 @@ if __name__ == '__main__':
             kml_stops(new_stopping_list, file)
             kml_left_turns(Left_turn, file)
             kml_right_turns(Right_turn, file)
-
