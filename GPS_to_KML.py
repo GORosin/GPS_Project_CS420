@@ -13,9 +13,9 @@ GPS_DATA_FILENAME = "FILES_TO_WORK/2019_03_03__1523_18.txt"
 def main(file):
     """
     Runs the main program.
-    :return:
+    :param file: the file
+    :return: N/A
     """
-    print(file)
     GPGGA_data, GPRMC_data, coords_data = set_gps_data(file)
     pd.set_option('display.max_columns', 20)
     # pandas data frames created for GPS data
@@ -89,10 +89,10 @@ def to_kml(kml_coordinates, filename):
             )
         )
     )
-    outfile = open(str(filename[:-3]) + "kml", "w")
+    outputFilename = "Output_KML/" + filename[:-3].split("/")[-1] + "kml"
+    outfile = open(outputFilename, "w")
     outfile.write(etree.tostring(doc, pretty_print=True).decode())
     outfile.close()
-    # os.startFile(outfile.name) # opens the kml file created. Recommended default to Google Earth Pro
 
 
 def set_gps_data(data):
@@ -170,7 +170,7 @@ def set_gps_data(data):
                 spd = line_tokens[3].split("=")
                 coords["speed"].append(spd[1])
                 sat = line_tokens[4].split("=")
-                coords["satellites"].append(sat[1])
+                coords["sattelites"].append(sat[1])
                 ang = line_tokens[5].split("=")
                 coords["angle"].append(ang[1])
                 fix = line_tokens[6].split("=")

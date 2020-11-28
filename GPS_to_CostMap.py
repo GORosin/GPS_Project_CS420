@@ -12,11 +12,10 @@ GPS_DATA_FILENAME = "FILES_TO_WORK/2019_03_03__1523_18.txt"
 
 def main(file):
     """
-
-    :param file:
-    :return:
+    Runs the main program.
+    :param file: the file
+    :return: N/A
     """
-    print(file)
     GPGGA_data, GPRMC_data, coords_data = set_gps_data(file)
     pd.set_option('display.max_columns', 20)
     coords_df = pd.DataFrame(coords_data)
@@ -94,11 +93,12 @@ def kml_stops(kml_coordinates, filename):
             )
         )
         docs.append(doc)
+
     head = KML.kml(docs)
-    outfile = open(str(filename[:-4]) + "_stops" + ".kml", "w")
+    outputFilename = "Output_CostMap/" + filename[:-4].split("/")[-1] + "_stops.kml"
+    outfile = open(outputFilename, "w")
     outfile.write(etree.tostring(head, pretty_print=True).decode())
     outfile.close()
-    # os.startfile(outfile.name)
 
 
 def kml_left_turns(kml_coordinates, filename):
