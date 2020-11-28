@@ -80,13 +80,13 @@ def get_gps_data(data):
                     continue
                 GPGGA["UTC position"].append(float(line_tokens[1]))
                 if line_tokens[3] == "S":
-                    GPGGA["latitude"].append(float(line_tokens[2]) * -1 / 100)
+                    GPGGA["latitude"].append(float(line_tokens[2]) * -1)
                 else:
-                    GPGGA["latitude"].append(float(line_tokens[2]) / 100)
+                    GPGGA["latitude"].append(float(line_tokens[2]))
                 if line_tokens[5] == "W":
-                    GPGGA["longitude"].append(float(line_tokens[4]) * -1 / 100)
+                    GPGGA["longitude"].append(float(line_tokens[4]) * -1)
                 else:
-                    GPGGA["longitude"].append(float(line_tokens[4]) / 100)
+                    GPGGA["longitude"].append(float(line_tokens[4]))
                 GPGGA["GPS Fix"].append(int(line_tokens[6]))
                 GPGGA["# of Satellites"].append(int(line_tokens[7]))
                 GPGGA["Horizontal dilution of precision"].append(float(line_tokens[8]))
@@ -109,13 +109,13 @@ def get_gps_data(data):
                 GPRMC["UTC position"].append(float(line_tokens[1]))
                 GPRMC["validity"].append(line_tokens[2])
                 if line_tokens[4] == "S":
-                    GPRMC["latitude"].append(float(line_tokens[3]) * -1 / 100)
+                    GPRMC["latitude"].append(float(line_tokens[3]) * -1)
                 else:
-                    GPRMC["latitude"].append(float(line_tokens[3]) / 100)
+                    GPRMC["latitude"].append(float(line_tokens[3]))
                 if line_tokens[6] == "W":
-                    GPRMC["longitude"].append(float(line_tokens[5]) * -1 / 100)
+                    GPRMC["longitude"].append(float(line_tokens[5]) * -1)
                 else:
-                    GPRMC["longitude"].append(float(line_tokens[5]) / 100)
+                    GPRMC["longitude"].append(float(line_tokens[5]))
                 GPRMC["speed over ground in knots"].append(float(line_tokens[7]))
                 GPRMC["track made good in degrees"].append(float(line_tokens[8]))
                 GPRMC["UT date"].append(line_tokens[9])
@@ -156,13 +156,13 @@ def format_gps_data(GPRMC_data, GPGGA_data):
         if timeRMC == timeGGA:
             GPSData["time"].append(timeRMC)
             if GPRMC_data["latitude"][counterRMC] != "":
-                GPSData["latitude"].append(GPRMC_data["latitude"][counterRMC])
+                GPSData["latitude"].append(convert_coordinate(GPRMC_data["latitude"][counterRMC]))
             else:
-                GPSData["latitude"].append(GPGGA_data["latitude"][counterGGA])
+                GPSData["latitude"].append(convert_coordinate(GPGGA_data["latitude"][counterGGA]))
             if GPRMC_data["longitude"][counterRMC] != "":
-                GPSData["longitude"].append(GPRMC_data["longitude"][counterRMC])
+                GPSData["longitude"].append(convert_coordinate(GPRMC_data["longitude"][counterRMC]))
             else:
-                GPSData["longitude"].append(GPGGA_data["longitude"][counterGGA])
+                GPSData["longitude"].append(convert_coordinate(GPGGA_data["longitude"][counterGGA]))
             GPSData["speed"].append(GPRMC_data["speed over ground in knots"][counterRMC] * 1.1508)
             GPSData["angle"].append(GPRMC_data["track made good in degrees"][counterRMC])
             GPSData["satellites"].append(GPGGA_data["# of Satellites"][counterGGA])
@@ -170,16 +170,16 @@ def format_gps_data(GPRMC_data, GPGGA_data):
             counterGGA += 1
         elif timeRMC < timeGGA:
             GPSData["time"].append(timeRMC)
-            GPSData["latitude"].append(GPRMC_data["latitude"][counterRMC])
-            GPSData["longitude"].append(GPRMC_data["longitude"][counterRMC])
+            GPSData["latitude"].append(convert_coordinate(GPRMC_data["latitude"][counterRMC]))
+            GPSData["longitude"].append(convert_coordinate(GPRMC_data["longitude"][counterRMC]))
             GPSData["speed"].append(GPRMC_data["speed over ground in knots"][counterRMC] * 1.1508)
             GPSData["angle"].append(GPRMC_data["track made good in degrees"][counterRMC])
             GPSData["satellites"].append(GPGGA_data["# of Satellites"][counterGGA])
             counterRMC += 1
         elif timeGGA < timeRMC:
             GPSData["time"].append(timeGGA)
-            GPSData["latitude"].append(GPGGA_data["latitude"][counterGGA])
-            GPSData["longitude"].append(GPGGA_data["longitude"][counterGGA])
+            GPSData["latitude"].append(convert_coordinate(GPGGA_data["latitude"][counterGGA]))
+            GPSData["longitude"].append(convert_coordinate(GPGGA_data["longitude"][counterGGA]))
             GPSData["speed"].append(GPRMC_data["speed over ground in knots"][counterRMC] * 1.1508)
             GPSData["angle"].append(GPRMC_data["track made good in degrees"][counterRMC])
             GPSData["satellites"].append(GPGGA_data["# of Satellites"][counterGGA])
