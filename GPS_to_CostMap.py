@@ -11,29 +11,83 @@ from geopy import distance
 import datetime
 
 
-def to_kml(kml_coordinates, filename):
-    doc = KML.kml(
-        KML.Document(
+def kml_stops(kml_coordinates, filename):
+    docs = KML.Document()
+    for coord in kml_coordinates:
+        doc = KML.Placemark(
+            KML.description("testpath"),
             KML.Style(
-                KML.LineStyle(
-                    KML.color("Af00ffff")
+                KML.IconStyle(
+                    KML.color("ff0000ff"),
+                    KML.Icon(
+                        KML.href("http://maps.google.com/mapfiles/kml/paddle/1.png")
+                    )
                 )
             ),
-            KML.Placemark(
-                KML.name("placeholder"),
-                KML.description("testpath"),
-                KML.LineString(
-                    KML.coordinates(
-                        kml_coordinates
-                    )
+            KML.Point(
+                KML.coordinates(
+                    coord[0] + "," + coord[1] + ",0.0"
                 )
             )
         )
-    )
-    outfile = open(str(filename[:-3]) + "kml", "w")
-    outfile.write(etree.tostring(doc, pretty_print=True).decode())
+        docs.append(doc)
+    head = KML.kml(docs)
+    outfile = open(str(filename[:-4]) + "_stops" + ".kml", "w")
+    outfile.write(etree.tostring(head, pretty_print=True).decode())
     outfile.close()
     # os.startfile(outfile.name)
+
+
+def kml_left_turns(kml_coordinates, filename):
+    docs = KML.Document()
+    for coord in kml_coordinates:
+        doc = KML.Placemark(
+            KML.description("testpath"),
+            KML.Style(
+                KML.IconStyle(
+                    KML.color("ff0000ff"),
+                    KML.Icon(
+                        KML.href("http://maps.google.com/mapfiles/kml/paddle/1.png")
+                    )
+                )
+            ),
+            KML.Point(
+                KML.coordinates(
+                    coord[0] + "," + coord[1] + ",0.0"
+                )
+            )
+        )
+        docs.append(doc)
+    head = KML.kml(docs)
+    outfile = open(str(filename[:-4]) + "_left_turns" + ".kml", "w")
+    outfile.write(etree.tostring(head, pretty_print=True).decode())
+    outfile.close()
+
+
+def kml_right_turns(kml_coordinates, filename):
+    docs = KML.Document()
+    for coord in kml_coordinates:
+        doc = KML.Placemark(
+            KML.description("testpath"),
+            KML.Style(
+                KML.IconStyle(
+                    KML.color("ff00ffff"),
+                    KML.Icon(
+                        KML.href("http://maps.google.com/mapfiles/kml/paddle/1.png")
+                    )
+                )
+            ),
+            KML.Point(
+                KML.coordinates(
+                    coord[0] + "," + coord[1] + ",0.0"
+                )
+            )
+        )
+        docs.append(doc)
+    head = KML.kml(docs)
+    outfile = open(str(filename[:-4]) + "_right_turns" + ".kml", "w")
+    outfile.write(etree.tostring(head, pretty_print=True).decode())
+    outfile.close()
 
 
 def set_gps_data(data):
@@ -136,51 +190,53 @@ if __name__ == '__main__':
             print(file)
             GPGGA_data, GPRMC_data, coords_data = set_gps_data(gps_data)
             pd.set_option('display.max_columns', 20)
-            GPGGA_df = pd.DataFrame(GPGGA_data)
-            GPRMC_df = pd.DataFrame(GPRMC_data)
             coords_df = pd.DataFrame(coords_data)
-            GPRMC_df.dropna(inplace=True)
             coords_df.dropna(inplace=True)
-            GPRMC_df.drop_duplicates(subset=["UTC position"], keep="first", inplace=True)
-            gps_speed_in_knots = []
-            directionchange = []
-            GPRMC_df.reset_index(drop=True, inplace=True)
-            for idx in range(len(GPRMC_df) - 1):
-                longi1 = GPRMC_df["longitude"][idx]
-                longi2 = GPRMC_df["longitude"][idx + 1]
-                lat1 = GPRMC_df["latitude"][idx]
-                lat2 = GPRMC_df["latitude"][idx + 1]
-                time1 = convert_time(GPRMC_df["UTC position"][idx])
-                time2 = convert_time(GPRMC_df["UTC position"][idx + 1])
-                direction1 = GPRMC_df["track made good in degrees"][idx]
-                direction2 = GPRMC_df["track made good in degrees"][idx + 1]
-                try:
-                    distancedifference = distance.distance((longi1 / 100, lat1 / 100), (longi2 / 100, lat2 / 100)).m
-                    timedifference = time2 - time1
-                    directiondifference = abs(float(direction2) - float(direction1))
-                    speed = distancedifference / timedifference * 2
-                    gps_speed_in_knots.append(round(speed, 2))
-
-                except (TypeError, KeyError) as e:
-                    gps_speed_in_knots.append(None)
-
+            new_column = coords_df["angle"].values
+            new_column = np.array(new_column).astype(float)
             coords_df["speed"] = coords_df["speed"].astype(float)
-            gps_speed_in_knots.append(gps_speed_in_knots[-1])
-            meanlist = []
-            midlist = []
-            for i in range(50):
-                bin_data = GPRMC_df[np.logical_and(GPRMC_df["speed over ground in knots"] > i / 10,
-                                                   GPRMC_df["speed over ground in knots"] < (i + 1) / 10)]
-                midpoint = (2 * i + 1) / 20
-                midlist.append(midpoint)
-            GPRMC_df["calculated speed"] = gps_speed_in_knots
-            GPRMC_df.dropna(inplace=True)
-            GPRMC_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
+            new_column[1:] = new_column[1:] - new_column[:-1]
+            for i, d in enumerate(new_column):
+                diff = d % 360
+                result = diff if diff < 180 else 360 - diff
+                sign = 1 if (0 <= d <= 180) or (-180 >= d >= -360) else -1
+                new_column[i] = result*sign
+            new_column[0] = new_column[1]
+            new_column[-1] = new_column[-2]
+            coords_df["angle difference"] = new_column
+            left_turns = coords_df[np.logical_and(coords_df["angle difference"] < -5, coords_df["speed"] > 3)]
+            left_turns = left_turns[np.logical_and(left_turns["angle difference"] > -300, left_turns["speed"] > 3)]
+            right_turns = coords_df[np.logical_and(coords_df["angle difference"] > 5, coords_df["speed"] > 3)]
+            right_turns = right_turns[np.logical_and(right_turns["angle difference"] < 300, right_turns["speed"] > 3)]
             coords_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
+            turns = []
+            Right_turn = []
+            for row in right_turns.iterrows():
+                # print(row)
+                Right_turn.append([row[1][0], row[1][1]])
+            Left_turn = []
+            for row in left_turns.iterrows():
+                Left_turn.append([row[1][0], row[1][1]])
+            stopping_points = []
 
+            for row in coords_df.iterrows():
+                if float(row[1][3]) < 0.1:  # classifier 1: basically must not be moving
+                    stopping_points.append([row[1][0], row[1][1]])
+            points_to_delete = set()
+            points_to_keep = set()
+            for i in range(len(stopping_points)):
+                for j in range(i + 1, len(stopping_points)):
+                    dist = distance.distance(stopping_points[i], stopping_points[j]).m
+                    if dist < 10:  # multiple consecutive points where the car is not moving are removed
+                        points_to_delete.add(j)
+
+            new_stopping_list = [stopping_points[i] for i in range(len(stopping_points)) if i not in points_to_delete]
             coordinates = ""
             for row in coords_df.iterrows():
                 if pd.notnull(row[1][0]):
                     coordinates += f"{row[1][0]},{row[1][1]},0.0\n"
 
-            to_kml(coordinates, file)
+            kml_stops(new_stopping_list, file)
+            kml_left_turns(Left_turn, file)
+            kml_right_turns(Right_turn, file)
+
