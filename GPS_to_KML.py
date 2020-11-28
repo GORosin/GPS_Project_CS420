@@ -221,12 +221,13 @@ if __name__ == '__main__':
                     gps_speed_in_knots.append(None)
             new_column = coords_df["angle"].values
             new_column = np.array(new_column).astype(float)
-            new_column[1:]=new_column[1:]-new_column[:-1]
+            coords_df["speed"] = coords_df["speed"].astype(float)
+            new_column[1:]=np.absolute(new_column[1:]-new_column[:-1])
             new_column[0]=new_column[1]
             print(new_column)
             new_column[-1]=new_column[-2]
             coords_df["angle difference"]=new_column
-            new_angles = coords_df[coords_df["angle difference"]>10]
+            new_angles = coords_df[np.logical_and(coords_df["angle difference"]>5,coords_df["speed"]>3)]
             gps_speed_in_knots.append(gps_speed_in_knots[-1])
             meanlist= []
             midlist = []
