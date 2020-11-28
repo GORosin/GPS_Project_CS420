@@ -12,6 +12,11 @@ import datetime
 
 
 def to_kml(kml_coordinates, filename):
+    """
+    Creates a KML file using coordinates listed in a txt file.
+    :param kml_coordinates: String of comma-separated coordinates (longitude, latitude, speed)
+    :param filename: name of the txt file being converted
+    """
     doc = KML.kml(
         KML.Document(
             KML.Style(
@@ -33,10 +38,16 @@ def to_kml(kml_coordinates, filename):
     outfile = open(str(filename[:-3]) + "kml", "w")
     outfile.write(etree.tostring(doc, pretty_print=True).decode())
     outfile.close()
-    # os.startfile(outfile.name)
+    # os.startfile(outfile.name) # opens the kml file created. Recommended default to Google Earth Pro
 
 
 def set_gps_data(data):
+    """
+    Creates three dictionaries of GPS data using GPGGA, GPRMC, and listed coordinates.
+    See: http://aprs.gids.nl/nmea/
+    :param data: Name of a txt file where GPS data is retrieved.
+    :return: GPGGA, GPRMC, Coords dictionaries
+    """
     GPGGA = {"UTC position": [], "latitude": [], "longitude": [],
              "GPS Fix": [], "# of Satellites": [], "Horizontal dilution of precision": [],
              "antenna altitude": [], "geoidal separation": [], "age of GPS data": [],
@@ -47,8 +58,8 @@ def set_gps_data(data):
     coords = {"longitude": [], "latitude": [], "altitude": [], "speed": [], "sattelites": [], "angle": [], "fix": []}
     with open(data) as gps_file:
         for line in gps_file:
-            line_tokens = line.split(",")
-            if line_tokens[0] == "$GPGGA":
+            line_tokens = line.split(",")  # splits data by commas
+            if line_tokens[0] == "$GPGGA":  # if the first item in a line is GPGGA add it to that dictionary
                 GPGGA["UTC position"].append(float(line_tokens[1]))
                 GPGGA["latitude"].append([line_tokens[2], line_tokens[3]])
                 GPGGA["longitude"].append([line_tokens[4], line_tokens[5]])
@@ -89,13 +100,13 @@ def set_gps_data(data):
                 GPRMC["UT date"].append(line_tokens[9])
                 try:
                     GPRMC["variation"].append([line_tokens[10], line_tokens[11]])
-                except IndexError:
+                except IndexError:  # if this column is empty make it none for length consistency
                     GPRMC["variation"].append(None)
                 try:
                     GPRMC["checksum"].append(line_tokens[12].strip('\n'))
                 except IndexError:
                     GPRMC["checksum"].append(None)
-            elif "lng" in line_tokens[0]:
+            elif "lng" in line_tokens[0]:  # coordinates are split by =
                 lng = line_tokens[0].split("=")
                 coords["longitude"].append(lng[1])
                 lat = line_tokens[1].split("=")
@@ -110,11 +121,15 @@ def set_gps_data(data):
                 coords["angle"].append(ang[1])
                 fix = line_tokens[6].split("=")
                 coords["fix"].append(fix[1])
-
     return GPGGA, GPRMC, coords
 
 
 def convert_time(utc_time):
+    """
+    converts a UTC position from hours, minutes, seconds into just seconds.
+    easier to do math with time in one unit.
+    returns time in seconds.
+    """
     hours = int(utc_time / 10000)
     minutes_seconds = utc_time % 10000
     minutes = int(minutes_seconds / 100)
@@ -122,28 +137,25 @@ def convert_time(utc_time):
     return hours * 3600 + minutes * 60 + seconds
 
 
-def calc_mid(interval):
-    return int(interval.mid)
-
-
 if __name__ == '__main__':
     files = [f for f in os.listdir('.') if os.path.isfile(f)]
-    for file in files:
-        if file[-3:] != "txt":
+    for file in files:  # TODO change to use parameter instead of every file in directory
+        if file[-3:] != "txt":  # can only convert text files
             continue
         else:
             gps_data = file
             print(file)
             GPGGA_data, GPRMC_data, coords_data = set_gps_data(gps_data)
             pd.set_option('display.max_columns', 20)
+            # pandas data frames created for GPS data
             GPGGA_df = pd.DataFrame(GPGGA_data)
             GPRMC_df = pd.DataFrame(GPRMC_data)
             coords_df = pd.DataFrame(coords_data)
-            GPRMC_df.dropna(inplace=True)
+            GPRMC_df.dropna(inplace=True)  # get rid of NaNs
             coords_df.dropna(inplace=True)
             GPRMC_df.drop_duplicates(subset=["UTC position"], keep="first", inplace=True)
-            gps_speed_in_knots = []
-            directionchange = []
+            # get rid of coordinates recorded at the same time (if any)
+            gps_speed_in_knots = []  # list of speeds calculated manually (used to compare to listed speeds)
             GPRMC_df.reset_index(drop=True, inplace=True)
             for idx in range(len(GPRMC_df) - 1):
                 longi1 = GPRMC_df["longitude"][idx]
@@ -152,19 +164,16 @@ if __name__ == '__main__':
                 lat2 = GPRMC_df["latitude"][idx + 1]
                 time1 = convert_time(GPRMC_df["UTC position"][idx])
                 time2 = convert_time(GPRMC_df["UTC position"][idx + 1])
-                direction1 = GPRMC_df["track made good in degrees"][idx]
-                direction2 = GPRMC_df["track made good in degrees"][idx + 1]
                 try:
                     distancedifference = distance.distance((longi1 / 100, lat1 / 100), (longi2 / 100, lat2 / 100)).m
                     timedifference = time2 - time1
-                    directiondifference = abs(float(direction2) - float(direction1))
-                    speed = distancedifference / timedifference * 2
+                    speed = distancedifference / timedifference * 2  # calculates speed as distance/time (m/s)
                     gps_speed_in_knots.append(round(speed, 2))
 
                 except (TypeError, KeyError) as e:
                     gps_speed_in_knots.append(None)
 
-            coords_df["speed"] = coords_df["speed"].astype(float)
+            coords_df["speed"] = coords_df["speed"].astype(float)  # converts speed column to float
             gps_speed_in_knots.append(gps_speed_in_knots[-1])
             meanlist = []
             midlist = []
@@ -174,13 +183,13 @@ if __name__ == '__main__':
                 midpoint = (2 * i + 1) / 20
                 midlist.append(midpoint)
             GPRMC_df["calculated speed"] = gps_speed_in_knots
-            GPRMC_df.dropna(inplace=True)
+            GPRMC_df.dropna(inplace=True)  # drops NaNs from calculated speed
             GPRMC_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
             coords_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
-
+            # gets rid of coordinates at exactly the same place
             coordinates = ""
             for row in coords_df.iterrows():
                 if pd.notnull(row[1][0]):
-                    coordinates += f"{row[1][0]},{row[1][1]},0.0\n"
+                    coordinates += f"{row[1][0]},{row[1][1]},0.0\n"  # creates a string of comma-separated coordinates
 
             to_kml(coordinates, file)

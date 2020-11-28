@@ -12,6 +12,10 @@ import datetime
 
 
 def kml_stops(kml_coordinates, filename):
+    """
+    TODO change colors to: magenta (stops) yellow (left) cyan (right)
+    TODO combine stops and turns into one "hazards.kml" file
+    """
     docs = KML.Document()
     for coord in kml_coordinates:
         doc = KML.Placemark(
