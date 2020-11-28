@@ -35,12 +35,13 @@ def to_kml(kml_coordinates, filename):
     """
     doc = KML.kml(
         KML.Document(
-            KML.Style(
-                KML.LineStyle(
-                    KML.color("Af00ffff")
-                )
-            ),
             KML.Placemark(
+                KML.Style(
+                    KML.LineStyle(
+                        KML.color("ffffff00"),
+                        KML.width(8)
+                    )
+                ),
                 KML.name("placeholder"),
                 KML.description("testpath"),
                 KML.LineString(
