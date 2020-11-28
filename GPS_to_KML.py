@@ -1,14 +1,9 @@
-import sys
 import os
-import webbrowser
-import math
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from pykml.factory import KML_ElementMaker as KML
 from lxml import etree
 from geopy import distance
-import datetime
 
 
 def to_kml(kml_coordinates, filename):
@@ -168,9 +163,9 @@ if __name__ == '__main__':
                 time1 = convert_time(GPRMC_df["UTC position"][idx])
                 time2 = convert_time(GPRMC_df["UTC position"][idx + 1])
                 try:
-                    distancedifference = distance.distance((longi1 / 100, lat1 / 100), (longi2 / 100, lat2 / 100)).m
-                    timedifference = time2 - time1
-                    speed = distancedifference / timedifference * 2  # calculates speed as distance/time (m/s)
+                    distanceDifference = distance.distance((longi1 / 100, lat1 / 100), (longi2 / 100, lat2 / 100)).m
+                    timeDifference = time2 - time1
+                    speed = distanceDifference / timeDifference * 2  # calculates speed as distance/time (m/s)
                     gps_speed_in_knots.append(round(speed, 2))
 
                 except (TypeError, KeyError) as e:
@@ -178,13 +173,13 @@ if __name__ == '__main__':
 
             coords_df["speed"] = coords_df["speed"].astype(float)  # converts speed column to float
             gps_speed_in_knots.append(gps_speed_in_knots[-1])
-            meanlist = []
-            midlist = []
+            meanList = []
+            midList = []
             for i in range(50):
                 bin_data = GPRMC_df[np.logical_and(GPRMC_df["speed over ground in knots"] > i / 10,
                                                    GPRMC_df["speed over ground in knots"] < (i + 1) / 10)]
                 midpoint = (2 * i + 1) / 20
-                midlist.append(midpoint)
+                midList.append(midpoint)
             GPRMC_df["calculated speed"] = gps_speed_in_knots
             GPRMC_df.dropna(inplace=True)  # drops NaNs from calculated speed
             GPRMC_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
