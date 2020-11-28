@@ -16,52 +16,14 @@ def main(file):
     :param file: the file
     :return: N/A
     """
-    GPGGA_data, GPRMC_data, coords_data = set_gps_data(file)
-    pd.set_option('display.max_columns', 20)
-    # pandas data frames created for GPS data
-    GPGGA_df = pd.DataFrame(GPGGA_data)
-    GPRMC_df = pd.DataFrame(GPRMC_data)
-    coords_df = pd.DataFrame(coords_data)
-    GPRMC_df.dropna(inplace=True)  # get rid of NaNs
-    coords_df.dropna(inplace=True)
-    GPRMC_df.drop_duplicates(subset=["UTC position"], keep="first", inplace=True)
-    # get rid of coordinates recorded at the same time (if any)
-    gps_speed_in_knots = []  # list of speeds calculated manually (used to compare to listed speeds)
-    GPRMC_df.reset_index(drop=True, inplace=True)
-    for idx in range(len(GPRMC_df) - 1):
-        longi1 = GPRMC_df["longitude"][idx]
-        longi2 = GPRMC_df["longitude"][idx + 1]
-        lat1 = GPRMC_df["latitude"][idx]
-        lat2 = GPRMC_df["latitude"][idx + 1]
-        time1 = convert_time(GPRMC_df["UTC position"][idx])
-        time2 = convert_time(GPRMC_df["UTC position"][idx + 1])
-        try:
-            distanceDifference = distance.distance((longi1 / 100, lat1 / 100), (longi2 / 100, lat2 / 100)).m
-            timeDifference = time2 - time1
-            speed = distanceDifference / timeDifference * 2  # calculates speed as distance/time (m/s)
-            gps_speed_in_knots.append(round(speed, 2))
+    GPGGA_data, GPRMC_data = get_gps_data(file)
+    GPSData = format_gps_data(GPRMC_data, GPGGA_data)
 
-        except (TypeError, KeyError) as e:
-            gps_speed_in_knots.append(None)
-
-    coords_df["speed"] = coords_df["speed"].astype(float)  # converts speed column to float
-    gps_speed_in_knots.append(gps_speed_in_knots[-1])
-    meanList = []
-    midList = []
-    for i in range(50):
-        bin_data = GPRMC_df[np.logical_and(GPRMC_df["speed over ground in knots"] > i / 10,
-                                           GPRMC_df["speed over ground in knots"] < (i + 1) / 10)]
-        midpoint = (2 * i + 1) / 20
-        midList.append(midpoint)
-    GPRMC_df["calculated speed"] = gps_speed_in_knots
-    GPRMC_df.dropna(inplace=True)  # drops NaNs from calculated speed
-    GPRMC_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
-    coords_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
     # gets rid of coordinates at exactly the same place
     coordinates = ""
-    for row in GPRMC_df.iterrows():
+    for row in GPSData.iterrows():
         if pd.notnull(row[1][0]):
-            coordinates += f"{row[1][3]},{row[1][2]},0.0\n"  # creates a string of comma-separated coordinates
+            coordinates += f"{row[1][2]},{row[1][1]},0.0\n"  # creates a string of comma-separated coordinates
     to_kml(coordinates, file)
 
 
@@ -95,7 +57,7 @@ def to_kml(kml_coordinates, filename):
     outfile.close()
 
 
-def set_gps_data(data):
+def get_gps_data(data):
     """
     Creates three dictionaries of GPS data using GPGGA, GPRMC, and listed coordinates.
     See: http://aprs.gids.nl/nmea/
@@ -109,17 +71,25 @@ def set_gps_data(data):
     GPRMC = {"UTC position": [], "validity": [], "latitude": [], "longitude": [],
              "speed over ground in knots": [], "track made good in degrees": [],
              "UT date": [], "variation": [], "checksum": []}
-    coords = {"longitude": [], "latitude": [], "altitude": [], "speed": [], "sattelites": [], "angle": [], "fix": []}
     with open(data) as gps_file:
         for line in gps_file:
             line_tokens = line.split(",")  # splits data by commas
+
             if line_tokens[0] == "$GPGGA":  # if the first item in a line is GPGGA add it to that dictionary
+                if line_tokens[2] == "" or line_tokens[4] == "":
+                    continue
                 GPGGA["UTC position"].append(float(line_tokens[1]))
-                GPGGA["latitude"].append([line_tokens[2], line_tokens[3]])
-                GPGGA["longitude"].append([line_tokens[4], line_tokens[5]])
-                GPGGA["GPS Fix"].append(line_tokens[6])
-                GPGGA["# of Satellites"].append(line_tokens[7])
-                GPGGA["Horizontal dilution of precision"].append(line_tokens[8])
+                if line_tokens[3] == "S":
+                    GPGGA["latitude"].append(float(line_tokens[2]) * -1 / 100)
+                else:
+                    GPGGA["latitude"].append(float(line_tokens[2]) / 100)
+                if line_tokens[5] == "W":
+                    GPGGA["longitude"].append(float(line_tokens[4]) * -1 / 100)
+                else:
+                    GPGGA["longitude"].append(float(line_tokens[4]) / 100)
+                GPGGA["GPS Fix"].append(int(line_tokens[6]))
+                GPGGA["# of Satellites"].append(int(line_tokens[7]))
+                GPGGA["Horizontal dilution of precision"].append(float(line_tokens[8]))
                 GPGGA["antenna altitude"].append([line_tokens[9], line_tokens[10]])
                 try:
                     GPGGA["geoidal separation"].append([line_tokens[11], line_tokens[12]])
@@ -134,23 +104,20 @@ def set_gps_data(data):
                 except IndexError:
                     GPGGA["Differential reference station ID"].append(None)
             elif line_tokens[0] == "$GPRMC":
+                if line_tokens[3] == "" or line_tokens[5] == "":
+                    continue
                 GPRMC["UTC position"].append(float(line_tokens[1]))
                 GPRMC["validity"].append(line_tokens[2])
-                try:
-                    if line_tokens[4] == "S":
-                        GPRMC["latitude"].append(convert_coordinate(-1 * float(line_tokens[3])))
-                    else:
-                        GPRMC["latitude"].append(convert_coordinate(float(line_tokens[3])))
-                    if line_tokens[6] == "W":
-                        GPRMC["longitude"].append(convert_coordinate(-1 * float(line_tokens[5])))
-                    else:
-                        GPRMC["longitude"].append(convert_coordinate(float(line_tokens[5])))
-                    GPRMC["speed over ground in knots"].append(float(line_tokens[7]))
-                except ValueError:
-                    GPRMC["latitude"].append(None)
-                    GPRMC["longitude"].append(None)
-                    GPRMC["speed over ground in knots"].append(None)
-                GPRMC["track made good in degrees"].append(line_tokens[8])
+                if line_tokens[4] == "S":
+                    GPRMC["latitude"].append(float(line_tokens[3]) * -1 / 100)
+                else:
+                    GPRMC["latitude"].append(float(line_tokens[3]) / 100)
+                if line_tokens[6] == "W":
+                    GPRMC["longitude"].append(float(line_tokens[5]) * -1 / 100)
+                else:
+                    GPRMC["longitude"].append(float(line_tokens[5]) / 100)
+                GPRMC["speed over ground in knots"].append(float(line_tokens[7]))
+                GPRMC["track made good in degrees"].append(float(line_tokens[8]))
                 GPRMC["UT date"].append(line_tokens[9])
                 try:
                     GPRMC["variation"].append([line_tokens[10], line_tokens[11]])
@@ -160,22 +127,77 @@ def set_gps_data(data):
                     GPRMC["checksum"].append(line_tokens[12].strip('\n'))
                 except IndexError:
                     GPRMC["checksum"].append(None)
-            elif "lng" in line_tokens[0]:  # coordinates are split by =
-                lng = line_tokens[0].split("=")
-                coords["longitude"].append(lng[1])
-                lat = line_tokens[1].split("=")
-                coords["latitude"].append(lat[1])
-                alt = line_tokens[2].split("=")
-                coords["altitude"].append(alt[1])
-                spd = line_tokens[3].split("=")
-                coords["speed"].append(spd[1])
-                sat = line_tokens[4].split("=")
-                coords["sattelites"].append(sat[1])
-                ang = line_tokens[5].split("=")
-                coords["angle"].append(ang[1])
-                fix = line_tokens[6].split("=")
-                coords["fix"].append(fix[1])
-    return GPGGA, GPRMC, coords
+    return GPGGA, GPRMC
+
+
+def format_gps_data(GPRMC_data, GPGGA_data):
+    """
+
+    :param GPRMC_data: Data in the GPRMC format.
+    :param GPGGA_data: Data in the GPGGA format.
+    :return: a dictionary with the following:
+        time: The UTC time the position was recorded.
+        Latitude: The latitude of the position.
+        Longitude: The longitude of the position.
+        Speed: The average speed between the previous position and the current one in MPH.
+        Angle: The angle between the previous position and the current one, 0 is due north.
+        Fix Quality: The quality of the gps positioning.
+        Satellites: The number of satellites used in getting the position
+    """
+
+    GPSData = {"time": [], "latitude": [], "longitude": [], "speed": [], "angle": [], "satellites": []}
+
+    counterRMC = 0
+    counterGGA = 0
+    timeRMC = GPRMC_data["UTC position"][counterRMC]
+    timeGGA = GPGGA_data["UTC position"][counterGGA]
+
+    while timeRMC != 0 and timeGGA != 0:
+        if timeRMC == timeGGA:
+            GPSData["time"].append(timeRMC)
+            if GPRMC_data["latitude"][counterRMC] != "":
+                GPSData["latitude"].append(GPRMC_data["latitude"][counterRMC])
+            else:
+                GPSData["latitude"].append(GPGGA_data["latitude"][counterGGA])
+            if GPRMC_data["longitude"][counterRMC] != "":
+                GPSData["longitude"].append(GPRMC_data["longitude"][counterRMC])
+            else:
+                GPSData["longitude"].append(GPGGA_data["longitude"][counterGGA])
+            GPSData["speed"].append(GPRMC_data["speed over ground in knots"][counterRMC] * 1.1508)
+            GPSData["angle"].append(GPRMC_data["track made good in degrees"][counterRMC])
+            GPSData["satellites"].append(GPGGA_data["# of Satellites"][counterGGA])
+            counterRMC += 1
+            counterGGA += 1
+        elif timeRMC < timeGGA:
+            GPSData["time"].append(timeRMC)
+            GPSData["latitude"].append(GPRMC_data["latitude"][counterRMC])
+            GPSData["longitude"].append(GPRMC_data["longitude"][counterRMC])
+            GPSData["speed"].append(GPRMC_data["speed over ground in knots"][counterRMC] * 1.1508)
+            GPSData["angle"].append(GPRMC_data["track made good in degrees"][counterRMC])
+            GPSData["satellites"].append(GPGGA_data["# of Satellites"][counterGGA])
+            counterRMC += 1
+        elif timeGGA < timeRMC:
+            GPSData["time"].append(timeGGA)
+            GPSData["latitude"].append(GPGGA_data["latitude"][counterGGA])
+            GPSData["longitude"].append(GPGGA_data["longitude"][counterGGA])
+            GPSData["speed"].append(GPRMC_data["speed over ground in knots"][counterRMC] * 1.1508)
+            GPSData["angle"].append(GPRMC_data["track made good in degrees"][counterRMC])
+            GPSData["satellites"].append(GPGGA_data["# of Satellites"][counterGGA])
+            counterGGA += 1
+        if counterRMC >= len(GPRMC_data["UTC position"]) or counterGGA >= len(GPGGA_data["UTC position"]):
+            timeRMC = 0
+            timeGGA = 0
+        else:
+            timeRMC = GPRMC_data["UTC position"][counterRMC]
+            timeGGA = GPGGA_data["UTC position"][counterGGA]
+
+    # convert data into a pandas dataframe
+    pd.set_option('display.max_columns', 20)
+    GPSData_df = pd.DataFrame(GPSData)
+    GPSData_df.dropna(inplace=True)  # get rid of NaNs
+    GPSData_df.drop_duplicates(subset=["time"], keep="first", inplace=True)
+
+    return GPSData_df
 
 
 def convert_time(utc_time):
