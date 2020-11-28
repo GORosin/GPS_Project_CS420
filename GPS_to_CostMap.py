@@ -51,12 +51,10 @@ def main(file):
     stopping_points = []
 
     for row in GPRMC_df.iterrows():
-        #print(row)
         if float(row[1][4]) < 0.1:  # classifier 1: basically must not be moving
             stopping_points.append([row[1][3], row[1][2]])
     points_to_delete = set()
     for i in range(len(stopping_points)):
-        #print(stopping_points[i])
         for j in range(i + 1, len(stopping_points)):
             dist = distance.distance(stopping_points[i], stopping_points[j]).m
             if dist < 10:  # multiple consecutive points where the car is not moving are removed
@@ -81,14 +79,14 @@ def main(file):
 
 def kml_stops(kml_coordinates, docs):
     """
-    TODO change colors to: magenta (stops) yellow (left) cyan (right)
+    creates a purple placemark for every coordinate classified as a stop
     """
     for coord in kml_coordinates:
         doc = KML.Placemark(
             KML.description("Stop"),
             KML.Style(
                 KML.IconStyle(
-                    KML.color("ff0000ff"),
+                    KML.color("ff780078"),
                     KML.Icon(
                         KML.href("http://maps.google.com/mapfiles/kml/paddle/1.png")
                     )
@@ -104,12 +102,15 @@ def kml_stops(kml_coordinates, docs):
 
 
 def kml_left_turns(kml_coordinates, docs):
+    """
+    creates a yellow placemark for every coordinate classified as a left turn
+    """
     for coord in kml_coordinates:
         doc = KML.Placemark(
             KML.description("Left Turn"),
             KML.Style(
                 KML.IconStyle(
-                    KML.color("ff0000ff"),
+                    KML.color("FF14F0FF"),
                     KML.Icon(
                         KML.href("http://maps.google.com/mapfiles/kml/paddle/1.png")
                     )
@@ -125,12 +126,15 @@ def kml_left_turns(kml_coordinates, docs):
 
 
 def kml_right_turns(kml_coordinates, docs):
+    """
+    creates a cyan placemark for every coordinate classified as a right turn
+    """
     for coord in kml_coordinates:
         doc = KML.Placemark(
             KML.description("Right Turn"),
             KML.Style(
                 KML.IconStyle(
-                    KML.color("ff00ffff"),
+                    KML.color("ffffff00"),
                     KML.Icon(
                         KML.href("http://maps.google.com/mapfiles/kml/paddle/1.png")
                     )
@@ -146,6 +150,12 @@ def kml_right_turns(kml_coordinates, docs):
 
 
 def set_gps_data(data):
+    """
+    Creates three dictionaries of GPS data using GPGGA, GPRMC, and listed coordinates.
+    See: http://aprs.gids.nl/nmea/
+    :param data: Name of a txt file where GPS data is retrieved.
+    :return: GPGGA, GPRMC, Coords dictionaries
+    """
     GPGGA = {"UTC position": [], "latitude": [], "longitude": [],
              "GPS Fix": [], "# of Satellites": [], "Horizontal dilution of precision": [],
              "antenna altitude": [], "geoidal separation": [], "age of GPS data": [],
@@ -156,8 +166,8 @@ def set_gps_data(data):
     coords = {"longitude": [], "latitude": [], "altitude": [], "speed": [], "sattelites": [], "angle": [], "fix": []}
     with open(data) as gps_file:
         for line in gps_file:
-            line_tokens = line.split(",")
-            if line_tokens[0] == "$GPGGA":
+            line_tokens = line.split(",")  # splits data by commas
+            if line_tokens[0] == "$GPGGA":  # if the first item in a line is GPGGA add it to that dictionary
                 GPGGA["UTC position"].append(float(line_tokens[1]))
                 GPGGA["latitude"].append([line_tokens[2], line_tokens[3]])
                 GPGGA["longitude"].append([line_tokens[4], line_tokens[5]])
@@ -167,7 +177,7 @@ def set_gps_data(data):
                 GPGGA["antenna altitude"].append([line_tokens[9], line_tokens[10]])
                 try:
                     GPGGA["geoidal separation"].append([line_tokens[11], line_tokens[12]])
-                except IndexError:
+                except IndexError:  # if this column is empty make it none for length consistency
                     GPGGA["geoidal separation"].append(None)
                 try:
                     GPGGA["age of GPS data"].append(line_tokens[13])
@@ -224,6 +234,11 @@ def set_gps_data(data):
 
 
 def convert_time(utc_time):
+    """
+    converts a UTC position from hours, minutes, seconds into just seconds.
+    easier to do math with time in one unit.
+    returns time in seconds.
+    """
     hours = int(utc_time / 10000)
     minutes_seconds = utc_time % 10000
     minutes = int(minutes_seconds / 100)
@@ -232,8 +247,12 @@ def convert_time(utc_time):
 
 
 def convert_coordinate(coordinate):
+    """
+    converts latitude or longitude from degrees + minutes to just degrees
+    returns coordinate in degrees
+    """
     sign = 1
-    if int(coordinate) < 0:
+    if int(coordinate) < 0:  # i.e if negative, conserve the sign so it doesn't mess up the calculation
         sign = -1
     degrees = int(abs(coordinate) / 100)
     minutes = float(abs(coordinate)) % 100
