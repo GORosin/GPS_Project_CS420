@@ -18,41 +18,45 @@ def main(file):
     """
     GPGGA_data, GPRMC_data, coords_data = set_gps_data(file)
     pd.set_option('display.max_columns', 20)
+    GPGGA_df = pd.DataFrame(GPGGA_data)
+    GPRMC_df = pd.DataFrame(GPRMC_data)
     coords_df = pd.DataFrame(coords_data)
     coords_df.dropna(inplace=True)
-    new_column = coords_df["angle"].values
+    new_column = GPRMC_df["track made good in degrees"].values
     new_column = np.array(new_column).astype(float)
-    coords_df["speed"] = coords_df["speed"].astype(float)
+    GPRMC_df["speed over ground in knots"] = GPRMC_df["speed over ground in knots"].astype(float)
     new_column[1:] = new_column[1:] - new_column[:-1]
     for i, d in enumerate(new_column):
+        # loops through the angle column to eliminate very large directional changes
+        # because signs cause huge direction changes when crossing an axis
+        # (i.e from 1 to 359 is only 2 degrees in practice)
         diff = d % 360
         result = diff if diff < 180 else 360 - diff
         sign = 1 if (0 <= d <= 180) or (-180 >= d >= -360) else -1
         new_column[i] = result * sign
     new_column[0] = new_column[1]
     new_column[-1] = new_column[-2]
-    coords_df["angle difference"] = new_column
-    left_turns = coords_df[np.logical_and(coords_df["angle difference"] < -5, coords_df["speed"] > 3)]
-    left_turns = left_turns[np.logical_and(left_turns["angle difference"] > -300, left_turns["speed"] > 3)]
-    right_turns = coords_df[np.logical_and(coords_df["angle difference"] > 5, coords_df["speed"] > 3)]
-    right_turns = right_turns[np.logical_and(right_turns["angle difference"] < 300, right_turns["speed"] > 3)]
+    GPRMC_df["angle difference"] = new_column
+    left_turns = GPRMC_df[np.logical_and(GPRMC_df["angle difference"] < -5, GPRMC_df["speed over ground in knots"] > 3)]
+    left_turns = left_turns[np.logical_and(left_turns["angle difference"] > -300, left_turns["speed over ground in knots"] > 3)]
+    right_turns = GPRMC_df[np.logical_and(GPRMC_df["angle difference"] > 5, GPRMC_df["speed over ground in knots"] > 3)]
+    right_turns = right_turns[np.logical_and(right_turns["angle difference"] < 300, right_turns["speed over ground in knots"] > 3)]
     coords_df.drop_duplicates(subset=["longitude", "latitude"], keep="first", inplace=True)
-    turns = []
     Right_turn = []
     for row in right_turns.iterrows():
-        # print(row)
-        Right_turn.append([row[1][0], row[1][1]])
+        Right_turn.append([row[1][3], row[1][2]])
     Left_turn = []
     for row in left_turns.iterrows():
-        Left_turn.append([row[1][0], row[1][1]])
+        Left_turn.append([row[1][3], row[1][2]])
     stopping_points = []
 
-    for row in coords_df.iterrows():
-        if float(row[1][3]) < 0.1:  # classifier 1: basically must not be moving
-            stopping_points.append([row[1][0], row[1][1]])
+    for row in GPRMC_df.iterrows():
+        #print(row)
+        if float(row[1][4]) < 0.1:  # classifier 1: basically must not be moving
+            stopping_points.append([row[1][3], row[1][2]])
     points_to_delete = set()
-    points_to_keep = set()
     for i in range(len(stopping_points)):
+        #print(stopping_points[i])
         for j in range(i + 1, len(stopping_points)):
             dist = distance.distance(stopping_points[i], stopping_points[j]).m
             if dist < 10:  # multiple consecutive points where the car is not moving are removed
@@ -60,9 +64,9 @@ def main(file):
 
     new_stopping_list = [stopping_points[i] for i in range(len(stopping_points)) if i not in points_to_delete]
     coordinates = ""
-    for row in coords_df.iterrows():
+    for row in GPRMC_df.iterrows():
         if pd.notnull(row[1][0]):
-            coordinates += f"{row[1][0]},{row[1][1]},0.0\n"
+            coordinates += f"{row[1][3]},{row[1][2]},0.0\n"
 
     kml_stops(new_stopping_list, file)
     kml_left_turns(Left_turn, file)
@@ -88,7 +92,7 @@ def kml_stops(kml_coordinates, filename):
             ),
             KML.Point(
                 KML.coordinates(
-                    coord[0] + "," + coord[1] + ",0.0"
+                    str(coord[0]) + "," + str(coord[1]) + ",0.0"
                 )
             )
         )
@@ -116,13 +120,14 @@ def kml_left_turns(kml_coordinates, filename):
             ),
             KML.Point(
                 KML.coordinates(
-                    coord[0] + "," + coord[1] + ",0.0"
+                    str(coord[0]) + "," + str(coord[1]) + ",0.0"
                 )
             )
         )
         docs.append(doc)
     head = KML.kml(docs)
-    outfile = open(str(filename[:-4]) + "_left_turns" + ".kml", "w")
+    outputFilename = "Output_CostMap/" + filename[:-4].split("/")[-1] + "_left.kml"
+    outfile = open(outputFilename, "w")
     outfile.write(etree.tostring(head, pretty_print=True).decode())
     outfile.close()
 
@@ -142,13 +147,14 @@ def kml_right_turns(kml_coordinates, filename):
             ),
             KML.Point(
                 KML.coordinates(
-                    coord[0] + "," + coord[1] + ",0.0"
+                    str(coord[0]) + "," + str(coord[1]) + ",0.0"
                 )
             )
         )
         docs.append(doc)
     head = KML.kml(docs)
-    outfile = open(str(filename[:-4]) + "_right_turns" + ".kml", "w")
+    outputFilename = "Output_CostMap/" + filename[:-4].split("/")[-1] + "_right.kml"
+    outfile = open(outputFilename, "w")
     outfile.write(etree.tostring(head, pretty_print=True).decode())
     outfile.close()
 
@@ -190,13 +196,13 @@ def set_gps_data(data):
                 GPRMC["validity"].append(line_tokens[2])
                 try:
                     if line_tokens[4] == "S":
-                        GPRMC["latitude"].append(-1 * float(line_tokens[3]))
+                        GPRMC["latitude"].append(convert_coordinate(-1 * float(line_tokens[3])))
                     else:
-                        GPRMC["latitude"].append(float(line_tokens[3]))
+                        GPRMC["latitude"].append(convert_coordinate(float(line_tokens[3])))
                     if line_tokens[6] == "W":
-                        GPRMC["longitude"].append(-1 * float(line_tokens[5]))
+                        GPRMC["longitude"].append(convert_coordinate(-1 * float(line_tokens[5])))
                     else:
-                        GPRMC["longitude"].append(float(line_tokens[5]))
+                        GPRMC["longitude"].append(convert_coordinate(float(line_tokens[5])))
                     GPRMC["speed over ground in knots"].append(float(line_tokens[7]))
                 except ValueError:
                     GPRMC["latitude"].append(None)
@@ -237,6 +243,15 @@ def convert_time(utc_time):
     minutes = int(minutes_seconds / 100)
     seconds = minutes_seconds % 100
     return hours * 3600 + minutes * 60 + seconds
+
+
+def convert_coordinate(coordinate):
+    sign = 1
+    if int(coordinate) < 0:
+        sign = -1
+    degrees = int(abs(coordinate) / 100)
+    minutes = float(abs(coordinate)) % 100
+    return sign * (degrees + (minutes / 60))
 
 
 if __name__ == '__main__':
