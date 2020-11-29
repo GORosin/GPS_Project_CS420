@@ -60,7 +60,7 @@ def main(file):
     coordinates = ""
     for row in GPSData.iterrows():
         if pd.notnull(row[1][0]):
-            coordinates += f"{row[1][3]},{row[1][2]},0.0\n"
+            coordinates += f"{row[1][2]},{row[1][1]},0.0\n"
 
     docs = KML.Document()
     kml_stops(new_stopping_list, docs)
