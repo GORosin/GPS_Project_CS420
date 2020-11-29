@@ -29,14 +29,16 @@ def main(file):
         if pd.notnull(row[1][0]):
             direction = row[1][4]
             speed = row[1][3]
-            if abs(direction - straightAngle) < 9 and speed > 2:
+            if abs(direction - straightAngle) < 9 and speed > 1.25:
                 goingStraight = True
             else:
                 goingStraight = False
                 straightAngle = direction
-
             dist = distance.distance([row[1][2], row[1][1]], [previousCoord[2], previousCoord[1]]).m
-            if 250 < dist < 100000 and goingStraight is False:
+            if 350 < dist < 100000 and goingStraight is False:
+                print(previousCoord[3], previousCoord[4])
+                print(row[1][3], row[1][4])
+                print("###########################")
                 coordinates.append("")
             elif dist != 0 and goingStraight is False:
                 coordinates[len(
@@ -207,7 +209,7 @@ def format_gps_data(GPRMC_data, GPGGA_data):
     end = len(GPSData["satellites"])
 
     while num < end:
-        if GPSData["satellites"][num] < 2:
+        if GPSData["satellites"][num] < 2 or GPSData["speed"][num] < 1:
             GPSData["time"].pop(num)
             GPSData["latitude"].pop(num)
             GPSData["longitude"].pop(num)
