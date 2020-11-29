@@ -18,7 +18,7 @@ def main(file):
     """
     GPGGA_data, GPRMC_data = set_gps_data(file)
     GPSData = format_gps_data(GPRMC_data, GPGGA_data)
-    
+
     pd.set_option('display.max_columns', 20)
     change_in_direction = GPSData["angle"].values
     change_in_direction = np.array(change_in_direction).astype(float)
@@ -60,18 +60,21 @@ def main(file):
                 points_to_delete.add(j)
     Left_turn = [Left_turn[i] for i in range(len(Left_turn)) if i not in points_to_delete]
 
+    GPSData["speedavg"] = GPSData["speed"].rolling(10, center=True).mean()
+    #print(GPSData[GPSData["speed"]] > 30)
+    stops = GPSData[np.logical_and(GPSData["speed"] > 9, GPSData["speed"] < 12)]
+    stops = stops[np.logical_and(stops["speedavg"] > 9, stops["speedavg"] < 12)]
     stopping_points = []
-    for row in GPSData.iterrows():
-        if float(row[1][3]) < 0.1:  # classifier 1: basically must not be moving
-            stopping_points.append([row[1][2], row[1][1]])
+    for row in stops.iterrows():
+        stopping_points.append([row[1][2], row[1][1]])
     points_to_delete = set()
     for i in range(len(stopping_points)):
         for j in range(i + 1, len(stopping_points)):
             dist = distance.distance(stopping_points[i], stopping_points[j]).m
-            if dist < 10:  # multiple consecutive points where the car is not moving are removed
+            if dist < 15:  # multiple consecutive points where the car is not moving are removed
                 points_to_delete.add(j)
-
     new_stopping_list = [stopping_points[i] for i in range(len(stopping_points)) if i not in points_to_delete]
+    #print(new_stopping_list)
     coordinates = ""
     for row in GPSData.iterrows():
         if pd.notnull(row[1][0]):
