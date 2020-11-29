@@ -20,18 +20,28 @@ def main(file):
     GPSData = format_gps_data(GPRMC_data, GPGGA_data)
 
     # gets rid of coordinates at exactly the same place
+    goingStraight = False
+
     coordinates = [""]
-    previousCoord = [0, 0]
+    previousCoord = [0, 0, 0]
+    straightAngle = 0
     for row in GPSData.iterrows():
         if pd.notnull(row[1][0]):
-            dist = distance.distance([row[1][2], row[1][1]], previousCoord).m
-            if 250 < dist < 100000:
+            direction = row[1][4]
+            speed = row[1][3]
+            if abs(direction - straightAngle) < 9 and speed > 2:
+                goingStraight = True
+            else:
+                goingStraight = False
+                straightAngle = direction
+
+            dist = distance.distance([row[1][2], row[1][1]], [previousCoord[2], previousCoord[1]]).m
+            if 250 < dist < 100000 and goingStraight is False:
                 coordinates.append("")
-            elif dist != 0:
+            elif dist != 0 and goingStraight is False:
                 coordinates[len(
                     coordinates) - 1] += f"{row[1][2]},{row[1][1]},0.0\n"  # creates a string of comma-separated coordinates
-            previousCoord[0] = row[1][2]
-            previousCoord[1] = row[1][1]
+            previousCoord = row[1]
 
     to_kml(coordinates, file)
 
@@ -186,12 +196,6 @@ def format_gps_data(GPRMC_data, GPGGA_data):
             GPSData["satellites"].append(GPGGA_data["# of Satellites"][counterGGA])
             counterRMC += 1
         elif timeGGA < timeRMC:
-            GPSData["time"].append(timeGGA)
-            GPSData["latitude"].append(convert_coordinate(GPGGA_data["latitude"][counterGGA]))
-            GPSData["longitude"].append(convert_coordinate(GPGGA_data["longitude"][counterGGA]))
-            GPSData["speed"].append(GPRMC_data["speed over ground in knots"][counterRMC] * 1.1508)
-            GPSData["angle"].append(GPRMC_data["track made good in degrees"][counterRMC])
-            GPSData["satellites"].append(GPGGA_data["# of Satellites"][counterGGA])
             counterGGA += 1
         if counterRMC >= len(GPRMC_data["UTC position"]) or counterGGA >= len(GPGGA_data["UTC position"]):
             timeRMC = 0

@@ -280,12 +280,6 @@ def format_gps_data(GPRMC_data, GPGGA_data):
             GPSData["satellites"].append(GPGGA_data["# of Satellites"][counterGGA])
             counterRMC += 1
         elif timeGGA < timeRMC:
-            GPSData["time"].append(timeGGA)
-            GPSData["latitude"].append(convert_coordinate(GPGGA_data["latitude"][counterGGA]))
-            GPSData["longitude"].append(convert_coordinate(GPGGA_data["longitude"][counterGGA]))
-            GPSData["speed"].append(GPRMC_data["speed over ground in knots"][counterRMC] * 1.1508)
-            GPSData["angle"].append(GPRMC_data["track made good in degrees"][counterRMC])
-            GPSData["satellites"].append(GPGGA_data["# of Satellites"][counterGGA])
             counterGGA += 1
         if counterRMC >= len(GPRMC_data["UTC position"]) or counterGGA >= len(GPGGA_data["UTC position"]):
             timeRMC = 0
