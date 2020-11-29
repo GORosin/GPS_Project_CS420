@@ -20,7 +20,7 @@ def main(file):
     GPSData = format_gps_data(GPRMC_data, GPGGA_data)
     
     pd.set_option('display.max_columns', 20)
-    new_column = GPSData["angle"].values
+    new_column = GPSData["angle"].values  # TODO rename this to something that makes sense
     new_column = np.array(new_column).astype(float)
     new_column[1:] = new_column[1:] - new_column[:-1]
     for i, d in enumerate(new_column):
@@ -35,17 +35,17 @@ def main(file):
     new_column[-1] = new_column[-2]
     GPSData["angle difference"] = new_column
     left_turns = GPSData[np.logical_and(GPSData["angle difference"] < -5, GPSData["speed"] > 3)]
-    left_turns = left_turns[np.logical_and(left_turns["angle difference"] > -300, left_turns["speed"] > 3)]
+    left_turns = left_turns[np.logical_and(left_turns["angle difference"] > -8, left_turns["speed"] < 25)]
     right_turns = GPSData[np.logical_and(GPSData["angle difference"] > 5, GPSData["speed"] > 3)]
-    right_turns = right_turns[np.logical_and(right_turns["angle difference"] < 300, right_turns["speed"] > 3)]
+    right_turns = right_turns[np.logical_and(right_turns["angle difference"] < 8, right_turns["speed"] < 25)]
     Right_turn = []
-    for row in right_turns.iterrows():
+    for row in right_turns.iterrows():  # there's probably a more efficient way to convert the column to a list
         Right_turn.append([row[1][2], row[1][1]])
     Left_turn = []
     for row in left_turns.iterrows():
         Left_turn.append([row[1][2], row[1][1]])
-    stopping_points = []
 
+    stopping_points = []
     for row in GPSData.iterrows():
         if float(row[1][3]) < 0.1:  # classifier 1: basically must not be moving
             stopping_points.append([row[1][2], row[1][1]])
