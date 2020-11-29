@@ -28,7 +28,8 @@ def main(file):
             if 250 < dist < 100000:
                 coordinates.append("")
             elif dist != 0:
-                coordinates[len(coordinates)-1] += f"{row[1][2]},{row[1][1]},0.0\n"  # creates a string of comma-separated coordinates
+                coordinates[len(
+                    coordinates) - 1] += f"{row[1][2]},{row[1][1]},0.0\n"  # creates a string of comma-separated coordinates
             previousCoord[0] = row[1][2]
             previousCoord[1] = row[1][1]
 
@@ -55,7 +56,7 @@ def to_kml(kml_coordinates, filename):
             KML.coordinates(
                 coord_string
             )
-        ),)
+        ), )
         doc.append(placemark)
         placemark = KML.Placemark()
     docs.append(doc)
@@ -198,6 +199,20 @@ def format_gps_data(GPRMC_data, GPGGA_data):
         else:
             timeRMC = GPRMC_data["UTC position"][counterRMC]
             timeGGA = GPGGA_data["UTC position"][counterGGA]
+    num = 0
+    end = len(GPSData["satellites"])
+
+    while num < end:
+        if GPSData["satellites"][num] < 2:
+            GPSData["time"].pop(num)
+            GPSData["latitude"].pop(num)
+            GPSData["longitude"].pop(num)
+            GPSData["speed"].pop(num)
+            GPSData["angle"].pop(num)
+            GPSData["satellites"].pop(num)
+            end -= 1
+        else:
+            num += 1
 
     # convert data into a pandas dataframe
     pd.set_option('display.max_columns', 20)
