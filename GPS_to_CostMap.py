@@ -40,15 +40,15 @@ def main(file):
     right_turns = right_turns[np.logical_and(right_turns["angle difference"] < 300, right_turns["speed"] > 3)]
     Right_turn = []
     for row in right_turns.iterrows():
-        Right_turn.append([row[1][3], row[1][2]])
+        Right_turn.append([row[1][2], row[1][1]])
     Left_turn = []
     for row in left_turns.iterrows():
-        Left_turn.append([row[1][3], row[1][2]])
+        Left_turn.append([row[1][2], row[1][1]])
     stopping_points = []
 
     for row in GPSData.iterrows():
         if float(row[1][4]) < 0.1:  # classifier 1: basically must not be moving
-            stopping_points.append([row[1][3], row[1][2]])
+            stopping_points.append([row[1][2], row[1][1]])
     points_to_delete = set()
     for i in range(len(stopping_points)):
         for j in range(i + 1, len(stopping_points)):
