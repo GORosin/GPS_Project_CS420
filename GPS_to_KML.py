@@ -36,9 +36,6 @@ def main(file):
                 straightAngle = direction
             dist = distance.distance([row[1][2], row[1][1]], [previousCoord[2], previousCoord[1]]).m
             if 350 < dist < 100000 and goingStraight is False:
-                print(previousCoord[3], previousCoord[4])
-                print(row[1][3], row[1][4])
-                print("###########################")
                 coordinates.append("")
             elif dist != 0 and goingStraight is False:
                 coordinates[len(
