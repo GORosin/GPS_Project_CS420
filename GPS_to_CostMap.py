@@ -47,7 +47,7 @@ def main(file):
     stopping_points = []
 
     for row in GPSData.iterrows():
-        if float(row[1][4]) < 0.1:  # classifier 1: basically must not be moving
+        if float(row[1][3]) < 0.1:  # classifier 1: basically must not be moving
             stopping_points.append([row[1][2], row[1][1]])
     points_to_delete = set()
     for i in range(len(stopping_points)):
