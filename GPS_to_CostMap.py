@@ -20,30 +20,45 @@ def main(file):
     GPSData = format_gps_data(GPRMC_data, GPGGA_data)
     
     pd.set_option('display.max_columns', 20)
-    new_column = GPSData["angle"].values  # TODO rename this to something that makes sense
-    new_column = np.array(new_column).astype(float)
-    new_column[1:] = new_column[1:] - new_column[:-1]
-    for i, d in enumerate(new_column):
+    change_in_direction = GPSData["angle"].values
+    change_in_direction = np.array(change_in_direction).astype(float)
+    change_in_direction[1:] = change_in_direction[1:] - change_in_direction[:-1]
+    for i, direction in enumerate(change_in_direction):
         # loops through the angle column to eliminate very large directional changes
         # because signs cause huge direction changes when crossing an axis
         # (i.e from 1 to 359 is only 2 degrees in practice)
-        diff = d % 360
+        diff = direction % 360
         result = diff if diff < 180 else 360 - diff
-        sign = 1 if (0 <= d <= 180) or (-180 >= d >= -360) else -1
-        new_column[i] = result * sign
-    new_column[0] = new_column[1]
-    new_column[-1] = new_column[-2]
-    GPSData["angle difference"] = new_column
+        sign = 1 if (0 <= direction <= 180) or (-180 >= direction >= -360) else -1
+        change_in_direction[i] = result * sign
+    change_in_direction[0] = change_in_direction[1]
+    change_in_direction[-1] = change_in_direction[-2]
+    GPSData["angle difference"] = change_in_direction
     left_turns = GPSData[np.logical_and(GPSData["angle difference"] < -5, GPSData["speed"] > 3)]
     left_turns = left_turns[np.logical_and(left_turns["angle difference"] > -8, left_turns["speed"] < 25)]
     right_turns = GPSData[np.logical_and(GPSData["angle difference"] > 5, GPSData["speed"] > 3)]
     right_turns = right_turns[np.logical_and(right_turns["angle difference"] < 8, right_turns["speed"] < 25)]
     Right_turn = []
+    points_to_delete = set()
     for row in right_turns.iterrows():  # there's probably a more efficient way to convert the column to a list
         Right_turn.append([row[1][2], row[1][1]])
+    for i in range(len(Right_turn)):
+        for j in range(i + 1, len(Right_turn)):
+            dist = distance.distance(Right_turn[i], Right_turn[j]).m
+            if dist < 8:  # multiple consecutive points where the car is not moving are removed
+                points_to_delete.add(j)
+    Right_turn = [Right_turn[i] for i in range(len(Right_turn)) if i not in points_to_delete]
+
+    points_to_delete = set()
     Left_turn = []
     for row in left_turns.iterrows():
         Left_turn.append([row[1][2], row[1][1]])
+    for i in range(len(Left_turn)):
+        for j in range(i + 1, len(Left_turn)):
+            dist = distance.distance(Left_turn[i], Left_turn[j]).m
+            if dist < 8:  # multiple consecutive points where the car is not moving are removed
+                points_to_delete.add(j)
+    Left_turn = [Left_turn[i] for i in range(len(Left_turn)) if i not in points_to_delete]
 
     stopping_points = []
     for row in GPSData.iterrows():
