@@ -20,41 +20,48 @@ def main(file):
     GPSData = format_gps_data(GPRMC_data, GPGGA_data)
 
     # gets rid of coordinates at exactly the same place
-    coordinates = ""
+    coordinates = [""]
+    previousCoord = [0, 0]
     for row in GPSData.iterrows():
         if pd.notnull(row[1][0]):
-            coordinates += f"{row[1][2]},{row[1][1]},0.0\n"  # creates a string of comma-separated coordinates
+            dist = distance.distance([row[1][2], row[1][1]], previousCoord).m
+            if 250 < dist < 100000:
+                coordinates.append("")
+            elif dist != 0:
+                coordinates[len(coordinates)-1] += f"{row[1][2]},{row[1][1]},0.0\n"  # creates a string of comma-separated coordinates
+            previousCoord[0] = row[1][2]
+            previousCoord[1] = row[1][1]
+
     to_kml(coordinates, file)
 
 
 def to_kml(kml_coordinates, filename):
     """
     Creates a KML file using coordinates listed in a txt file.
-    :param kml_coordinates: String of comma-separated coordinates (longitude, latitude, speed)
+    :param kml_coordinates: List of string comma-separated coordinates (longitude, latitude, speed)
     :param filename: name of the txt file being converted
     """
-    doc = KML.kml(
-        KML.Document(
-            KML.Placemark(
-                KML.Style(
-                    KML.LineStyle(
-                        KML.color("ffffff00"),
-                        KML.width(8)
-                    )
-                ),
-                KML.name("placeholder"),
-                KML.description("testpath"),
-                KML.LineString(
-                    KML.coordinates(
-                        kml_coordinates
-                    )
-                )
+    docs = KML.kml()
+    doc = KML.Document()
+    placemark = KML.Placemark()
+    for coord_string in kml_coordinates:
+        placemark.append(KML.Style(
+            KML.LineStyle(
+                KML.color("ffffff00"),
+                KML.width(8))), )
+        placemark.append(KML.name("Route"), )
+        placemark.append(KML.description("Route Taken"), )
+        placemark.append(KML.LineString(
+            KML.coordinates(
+                coord_string
             )
-        )
-    )
+        ),)
+        doc.append(placemark)
+        placemark = KML.Placemark()
+    docs.append(doc)
     outputFilename = "Output_KML/" + filename[:-3].split("/")[-1] + "kml"
     outfile = open(outputFilename, "w")
-    outfile.write(etree.tostring(doc, pretty_print=True).decode())
+    outfile.write(etree.tostring(docs, pretty_print=True).decode())
     outfile.close()
 
 
