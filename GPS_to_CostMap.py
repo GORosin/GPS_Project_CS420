@@ -7,7 +7,7 @@ from geopy import distance
 
 # Change the below variable to be which ever file you want to parse out.
 # If left blank it will run all files in the FILES_TO_WORK directory
-GPS_DATA_FILENAME = "FILES_TO_WORK/2019_03_03__1523_18.txt"
+GPS_DATA_FILENAME = ""
 
 
 def main(file):
@@ -80,15 +80,7 @@ def main(file):
         if pd.notnull(row[1][0]):
             coordinates += f"{row[1][2]},{row[1][1]},0.0\n"
 
-    docs = KML.Document()
-    kml_stops(new_stopping_list, docs)
-    kml_left_turns(Left_turn, docs)
-    kml_right_turns(Right_turn, docs)
-    head = KML.kml(docs)
-    outputFilename = "Output_CostMap/" + file[:-4].split("/")[-1] + "_Hazards.kml"
-    outfile = open(outputFilename, "w")
-    outfile.write(etree.tostring(head, pretty_print=True).decode())
-    outfile.close()
+    return new_stopping_list, Left_turn, Right_turn
 
 
 def kml_stops(kml_coordinates, docs):
@@ -326,9 +318,25 @@ def convert_coordinate(coordinate):
     return sign * (degrees + (minutes / 60))
 
 
+def create_output_file(header, filename):
+    outputFilename = "Output_CostMap/" + filename[:-4].split("/")[-1] + "_Hazards.kml"
+    outfile = open(outputFilename, "w")
+    outfile.write(etree.tostring(header, pretty_print=True).decode())
+    outfile.close()
+
+
 if __name__ == '__main__':
     if GPS_DATA_FILENAME == "":
-        for fileName in os.listdir("FILES_TO_WORK"):
-            main(fileName)
+        directory = "FILES_TO_WORK/"
+        costmap = []
+        docs = KML.Document()
+        for fileName in os.listdir(directory):
+            stops, lefts, rights = main(directory+fileName)
+            kml_stops(stops, docs)
+            kml_left_turns(lefts, docs)
+            kml_right_turns(rights, docs)
+        head = KML.kml(docs)
+        create_output_file(head, directory+"Example.kml")
     else:
         main(GPS_DATA_FILENAME)
+

@@ -7,7 +7,7 @@ from geopy import distance
 
 # Change the below variable to be which ever file you want to parse out.
 # If left blank it will run all files in the FILES_TO_WORK directory
-GPS_DATA_FILENAME = "FILES_TO_WORK/2019_03_03__1523_18.txt"
+GPS_DATA_FILENAME = ""
 
 
 def main(file):
@@ -250,7 +250,9 @@ def convert_coordinate(coordinate):
 
 if __name__ == '__main__':
     if GPS_DATA_FILENAME == "":
-        for fileName in os.listdir("FILES_TO_WORK"):
-            main(fileName)
+        directory = "FILES_TO_WORK/"
+        costmap = []
+        for fileName in os.listdir(directory):
+            costmap.append(main(directory+fileName))
     else:
         main(GPS_DATA_FILENAME)
