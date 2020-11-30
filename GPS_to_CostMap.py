@@ -204,6 +204,10 @@ def set_gps_data(data):
             elif line_tokens[0] == "$GPRMC":
                 if line_tokens[3] == "" or line_tokens[5] == "":
                     continue
+                try:
+                    float(line_tokens[5])
+                except ValueError:
+                    continue
                 GPRMC["UTC position"].append(float(line_tokens[1]))
                 GPRMC["validity"].append(line_tokens[2])
                 if line_tokens[4] == "S":
