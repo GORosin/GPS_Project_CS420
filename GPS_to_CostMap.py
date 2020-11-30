@@ -14,23 +14,23 @@ def main(file):
     """
     Runs the main program.
     :param file: the file
-    :return: N/A
+    :return: stops, left_turn, right_turn
     """
     GPGGA_data, GPRMC_data = set_gps_data(file)
     GPSData = format_gps_data(GPRMC_data, GPGGA_data)
 
     pd.set_option('display.max_columns', 20)
     change_in_direction = GPSData["angle"].values
-    change_in_direction = np.array(change_in_direction).astype(float)
+    change_in_direction = np.array(change_in_direction).astype(float)  # convert elements to float
     change_in_direction[1:] = change_in_direction[1:] - change_in_direction[:-1]
-    for i, direction in enumerate(change_in_direction):
+    for idx, direction in enumerate(change_in_direction):
         # loops through the angle column to eliminate very large directional changes
         # because signs cause huge direction changes when crossing an axis
         # (i.e from 1 to 359 is only 2 degrees in practice)
         diff = direction % 360
         result = diff if diff < 180 else 360 - diff
         sign = 1 if (0 <= direction <= 180) or (-180 >= direction >= -360) else -1
-        change_in_direction[i] = result * sign
+        change_in_direction[idx] = result * sign
     change_in_direction[0] = change_in_direction[1]
     change_in_direction[-1] = change_in_direction[-2]
     GPSData["angle difference"] = change_in_direction
@@ -38,49 +38,47 @@ def main(file):
     left_turns = left_turns[np.logical_and(left_turns["angle difference"] > -8, left_turns["speed"] < 25)]
     right_turns = GPSData[np.logical_and(GPSData["angle difference"] > 5, GPSData["speed"] > 3)]
     right_turns = right_turns[np.logical_and(right_turns["angle difference"] < 8, right_turns["speed"] < 25)]
-    Right_turn = []
+    right_turn_list = []
     points_to_delete = set()
     for row in right_turns.iterrows():  # there's probably a more efficient way to convert the column to a list
-        Right_turn.append([row[1][2], row[1][1]])
-    for i in range(len(Right_turn)):
-        for j in range(i + 1, len(Right_turn)):
-            dist = distance.distance(Right_turn[i], Right_turn[j]).m
+        right_turn_list.append([row[1][2], row[1][1]])
+    for idx in range(len(right_turn_list)):
+        for j in range(idx + 1, len(right_turn_list)):
+            dist = distance.distance(right_turn_list[idx], right_turn_list[j]).m
             if dist < 8:  # multiple consecutive points where the car is not moving are removed
                 points_to_delete.add(j)
-    Right_turn = [Right_turn[i] for i in range(len(Right_turn)) if i not in points_to_delete]
+    right_turn_list = [right_turn_list[i] for i in range(len(right_turn_list)) if i not in points_to_delete]
 
     points_to_delete = set()
-    Left_turn = []
+    left_turn_list = []
     for row in left_turns.iterrows():
-        Left_turn.append([row[1][2], row[1][1]])
-    for i in range(len(Left_turn)):
-        for j in range(i + 1, len(Left_turn)):
-            dist = distance.distance(Left_turn[i], Left_turn[j]).m
+        left_turn_list.append([row[1][2], row[1][1]])
+    for idx in range(len(left_turn_list)):
+        for j in range(idx + 1, len(left_turn_list)):
+            dist = distance.distance(left_turn_list[idx], left_turn_list[j]).m
             if dist < 8:  # multiple consecutive points where the car is not moving are removed
                 points_to_delete.add(j)
-    Left_turn = [Left_turn[i] for i in range(len(Left_turn)) if i not in points_to_delete]
+    left_turn_list = [left_turn_list[i] for i in range(len(left_turn_list)) if i not in points_to_delete]
 
     GPSData["speedavg"] = GPSData["speed"].rolling(10, center=True).mean()
-    #print(GPSData[GPSData["speed"]] > 30)
     stops = GPSData[np.logical_and(GPSData["speed"] > 9, GPSData["speed"] < 12)]
     stops = stops[np.logical_and(stops["speedavg"] > 9, stops["speedavg"] < 12)]
     stopping_points = []
     for row in stops.iterrows():
         stopping_points.append([row[1][2], row[1][1]])
     points_to_delete = set()
-    for i in range(len(stopping_points)):
-        for j in range(i + 1, len(stopping_points)):
-            dist = distance.distance(stopping_points[i], stopping_points[j]).m
+    for idx in range(len(stopping_points)):
+        for j in range(idx + 1, len(stopping_points)):
+            dist = distance.distance(stopping_points[idx], stopping_points[j]).m
             if dist < 15:  # multiple consecutive points where the car is not moving are removed
                 points_to_delete.add(j)
     new_stopping_list = [stopping_points[i] for i in range(len(stopping_points)) if i not in points_to_delete]
-    #print(new_stopping_list)
     coordinates = ""
     for row in GPSData.iterrows():
         if pd.notnull(row[1][0]):
             coordinates += f"{row[1][2]},{row[1][1]},0.0\n"
 
-    return new_stopping_list, Left_turn, Right_turn
+    return new_stopping_list, left_turn_list, right_turn_list
 
 
 def kml_stops(kml_coordinates, docs):
@@ -160,7 +158,7 @@ def set_gps_data(data):
     Creates three dictionaries of GPS data using GPGGA, GPRMC, and listed coordinates.
     See: http://aprs.gids.nl/nmea/
     :param data: Name of a txt file where GPS data is retrieved.
-    :return: GPGGA, GPRMC, Coords dictionaries
+    :return: GPGGA, GPRMC dictionaries
     """
     GPGGA = {"UTC position": [], "latitude": [], "longitude": [],
              "GPS Fix": [], "# of Satellites": [], "Horizontal dilution of precision": [],
@@ -287,7 +285,7 @@ def format_gps_data(GPRMC_data, GPGGA_data):
             timeRMC = GPRMC_data["UTC position"][counterRMC]
             timeGGA = GPGGA_data["UTC position"][counterGGA]
 
-    # convert data into a pandas dataframe
+    # convert data into a pandas data frame
     pd.set_option('display.max_columns', 20)
     GPSData_df = pd.DataFrame(GPSData)
     GPSData_df.dropna(inplace=True)  # get rid of NaNs
@@ -323,6 +321,10 @@ def convert_coordinate(coordinate):
 
 
 def create_output_file(header, filename):
+    """
+    :param header: a KML.kml object enclosing documents
+    :param filename: name of the file to write
+    """
     outputFilename = "Output_CostMap/" + filename[:-4].split("/")[-1] + "_Hazards.kml"
     outfile = open(outputFilename, "w")
     outfile.write(etree.tostring(header, pretty_print=True).decode())
@@ -333,13 +335,13 @@ if __name__ == '__main__':
     if GPS_DATA_FILENAME == "":
         directory = "FILES_TO_WORK/"
         costmap = []
-        docs = KML.Document()
+        kml_docs = KML.Document()
         for fileName in os.listdir(directory):
             stops, lefts, rights = main(directory+fileName)
-            kml_stops(stops, docs)
-            kml_left_turns(lefts, docs)
-            kml_right_turns(rights, docs)
-        head = KML.kml(docs)
+            kml_stops(stops, kml_docs)
+            kml_left_turns(lefts, kml_docs)
+            kml_right_turns(rights, kml_docs)
+        head = KML.kml(kml_docs)
         create_output_file(head, directory+"Example.kml")
     else:
         main(GPS_DATA_FILENAME)

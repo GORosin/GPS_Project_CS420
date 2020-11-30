@@ -19,7 +19,6 @@ def main(file):
     GPGGA_data, GPRMC_data = get_gps_data(file)
     GPSData = format_gps_data(GPRMC_data, GPGGA_data)
 
-    # gets rid of coordinates at exactly the same place
     goingStraight = False
 
     coordinates = [""]
@@ -244,6 +243,10 @@ def convert_time(utc_time):
 
 
 def convert_coordinate(coordinate):
+    """
+    converts latitude or longitude from degrees + minutes to just degrees
+    returns coordinate in degrees
+    """
     sign = 1
     if int(coordinate) < 0:
         sign = -1
