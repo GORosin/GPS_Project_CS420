@@ -256,6 +256,8 @@ def convert_coordinate(coordinate):
 
 
 if __name__ == '__main__':
+    if not os.path.exists('Output_KML/'):
+        os.makedirs('Output_KML/')
     if GPS_DATA_FILENAME == "":
         directory = "FILES_TO_WORK/"
         costmap = []

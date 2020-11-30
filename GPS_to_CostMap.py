@@ -325,6 +325,8 @@ def create_output_file(header, filename):
     :param header: a KML.kml object enclosing documents
     :param filename: name of the file to write
     """
+    if not os.path.exists('Output_CostMap/'):
+        os.makedirs('Output_CostMap/')
     outputFilename = "Output_CostMap/" + filename[:-4].split("/")[-1] + "_Hazards.kml"
     outfile = open(outputFilename, "w")
     outfile.write(etree.tostring(header, pretty_print=True).decode())
